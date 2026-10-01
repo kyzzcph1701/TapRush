@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0b0d12">
+<title>TapRush — Tap Counter</title>
+<style>
+:root{
+  --bg:#090b10;
+  --panel:#11141c;
+  --panel2:#171b25;
+  --text:#f5f7fb;
+  --muted:#8d96a8;
+  --border:#252b38;
+  --accent:#7c5cff;
+  --accent2:#a58cff;
+  --good:#43d19e;
+  --danger:#ff5c7a;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+button{font:inherit}
+body{display:flex;justify-content:center}
+.app{width:min(100%,760px);padding:24px 16px 40px}
+.header{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:20px}
+.brand{font-size:20px;font-weight:800;letter-spacing:-.04em}
+.brand span{color:var(--accent2)}
+.status{font-size:12px;color:var(--muted);padding:7px 10px;border:1px solid var(--border);border-radius:999px}
+.hero{text-align:center;margin:24px 0 18px}
+.hero h1{font-size:clamp(34px,8vw,58px);line-height:1;margin:0;letter-spacing:-.06em}
+.hero p{margin:12px 0 0;color:var(--muted)}
+.modebar{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;background:var(--panel);border:1px solid var(--border);padding:6px;border-radius:16px;margin-bottom:16px}
+.modebar button{border:0;background:transparent;color:var(--muted);padding:10px;border-radius:11px;cursor:pointer;font-weight:700}
+.modebar button.active{background:var(--panel2);color:var(--text)}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:24px;padding:18px}
+.counter{position:relative;overflow:hidden;min-height:350px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;touch-action:manipulation;user-select:none}
+.counter::before{content:"";position:absolute;width:230px;height:230px;border-radius:50%;background:radial-gradient(circle,var(--accent),transparent 68%);opacity:.14;pointer-events:none}
+.counter:active .tap-orb{transform:scale(.95)}
+.tap-orb{position:relative;width:210px;height:210px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 35% 30%,#9b87ff,#5d42d8 62%,#3a2799);box-shadow:0 18px 55px rgba(124,92,255,.3),inset 0 2px 2px rgba(255,255,255,.25);transition:transform .08s ease}
+.count{font-size:64px;font-weight:900;letter-spacing:-.07em;text-shadow:0 3px 18px rgba(0,0,0,.25)}
+.tap-label{position:absolute;bottom:36px;font-size:13px;font-weight:800;letter-spacing:.16em;color:var(--muted)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}
+.stat{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:14px;min-width:0}
+.stat small{display:block;color:var(--muted);font-size:11px;margin-bottom:6px}
+.stat strong{font-size:22px;letter-spacing:-.04em}
+.actions{display:flex;gap:10px;margin-top:12px}
+.actions button,.challenge button{flex:1;border:1px solid var(--border);background:var(--panel);color:var(--text);border-radius:14px;padding:12px;cursor:pointer;font-weight:700}
+.actions button:hover,.challenge button:hover{border-color:#3a4151}
+.actions .primary{background:var(--accent);border-color:var(--accent);color:white}
+.challenge{margin-top:12px}
+.challenge-top{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px}
+.challenge-title{font-weight:800}
+.challenge-desc{font-size:12px;color:var(--muted)}
+.progress{height:10px;background:#202532;border-radius:999px;overflow:hidden}
+.progress span{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:inherit;transition:width .15s}
+.challenge button{margin-top:12px;width:100%}
+.feed{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.float{position:absolute;font-weight:900;color:white;font-size:20px;animation:floatUp .65s ease-out forwards}
+@keyframes floatUp{0%{opacity:1;transform:translate(-50%,0) scale(.8)}100%{opacity:0;transform:translate(-50%,-90px) scale(1.15)}}
+.flash{animation:flash .15s ease}
+@keyframes flash{50%{filter:brightness(1.35)}}
+@media(max-width:600px){
+  .app{padding:18px 12px 30px}
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .counter{min-height:320px}
+  .tap-orb{width:190px;height:190px}
+  .count{font-size:56px}
+}
+</style>
+</head>
+<body>
+<main class="app">
+  <header class="header">
+    <div class="brand">Tap<span>Rush</span></div>
+    <div id="status" class="status">READY</div>
+  </header>
+
+  <section class="hero">
+    <h1>Tap. Tap. Tap.</h1>
+    <p>Seberapa cepat jarimu bisa bekerja?</p>
+  </section>
+
+  <nav class="modebar" aria-label="Mode permainan">
+    <button class="active" data-mode="free">Bebas</button>
+    <button data-mode="10">10 Detik</button>
+    <button data-mode="30">30 Detik</button>
+  </nav>
+
+  <section id="counter" class="card counter" aria-label="Area tap">
+    <div id="feed" class="feed"></div>
+    <div class="tap-orb">
+      <div id="count" class="count">0</div>
+    </div>
+    <div class="tap-label" id="tapLabel">TAP DI MANA SAJA</div>
+  </section>
+
+  <section class="stats">
+    <div class="stat"><small>TAP / DETIK</small><strong id="cps">0.0</strong></div>
+    <div class="stat"><small>COMBO</small><strong id="combo">0</strong></div>
+    <div class="stat"><small>WAKTU</small><strong id="time">0.0s</strong></div>
+    <div class="stat"><small>REKOR</small><strong id="best">0</strong></div>
+  </section>
+
+  <div class="actions">
+    <button id="reset">Reset</button>
+    <button id="sound">Sound: OFF</button>
+  </div>
+
+  <section class="card challenge">
+    <div class="challenge-top">
+      <div>
+        <div class="challenge-title">Challenge: 100 Tap</div>
+        <div class="challenge-desc">Capai 100 tap untuk menyelesaikan target.</div>
+      </div>
+      <strong id="challengeText">0%</strong>
+    </div>
+    <div class="progress"><span id="progress"></span></div>
+    <button id="challengeReset">Reset Challenge</button>
+  </section>
+</main>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const counter = $("counter"), countEl = $("count"), cpsEl = $("cps");
+  const comboEl = $("combo"), timeEl = $("time"), bestEl = $("best");
+  const statusEl = $("status"), feed = $("feed"), tapLabel = $("tapLabel");
+  const progress = $("progress"), challengeText = $("challengeText");
+  const modeButtons = [...document.querySelectorAll("[data-mode]")];
+
+  let count = 0, combo = 0, best = 0, startedAt = 0, lastTap = 0;
+  let mode = "free", deadline = 0, running = false, soundOn = false;
+  let recentTaps = [], timer = null, audioCtx = null;
+
+  try { best = Number(localStorage.getItem("taprush-best") || 0); } catch(e) {}
+  bestEl.textContent = best;
+
+  function beep() {
+    if (!soundOn) return;
+    try {
+      audioCtx ||= new (window.AudioContext || window.webkitAudioContext)();
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.frequency.value = 220 + Math.min(combo, 40) * 7;
+      g.gain.setValueAtTime(.045, audioCtx.currentTime);
+      g.gain.exponentialRampToValueAtTime(.001, audioCtx.currentTime + .055);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(); o.stop(audioCtx.currentTime + .055);
+    } catch(e) {}
+  }
+
+  function update() {
+    const now = performance.now();
+    const elapsed = startedAt ? (now - startedAt) / 1000 : 0;
+    recentTaps = recentTaps.filter(t => now - t < 1000);
+    const cps = recentTaps.length;
+
+    countEl.textContent = count.toLocaleString("id-ID");
+    cpsEl.textContent = cps.toFixed(1);
+    comboEl.textContent = combo;
+    timeEl.textContent = elapsed.toFixed(1) + "s";
+
+    const pct = Math.min(100, count);
+    progress.style.width = pct + "%";
+    challengeText.textContent = Math.round(pct) + "%";
+
+    if (mode !== "free" && running) {
+      const left = Math.max(0, (deadline - now) / 1000);
+      tapLabel.textContent = left.toFixed(1) + " DETIK";
+      if (left <= 0) finish();
+    }
+
+    if (running) timer = requestAnimationFrame(update);
+  }
+
+  function start() {
+    if (running) return;
+    running = true;
+    startedAt = performance.now();
+    if (mode !== "free") deadline = startedAt + Number(mode) * 1000;
+    statusEl.textContent = mode === "free" ? "RUNNING" : mode + "S CHALLENGE";
+    update();
+  }
+
+  function finish() {
+    running = false;
+    cancelAnimationFrame(timer);
+    const score = count;
+    if (score > best) {
+      best = score;
+      bestEl.textContent = best;
+      try { localStorage.setItem("taprush-best", String(best)); } catch(e) {}
+    }
+    statusEl.textContent = "FINISHED";
+    tapLabel.textContent = "SELESAI — RESET UNTUK MAIN LAGI";
+  }
+
+  function spawnFloat(x, y) {
+    const el = document.createElement("div");
+    el.className = "float";
+    el.textContent = combo >= 5 ? "+" + 1 + "  COMBO x" + combo : "+1";
+    el.style.left = x + "px";
+    el.style.top = y + "px";
+    feed.appendChild(el);
+    setTimeout(() => el.remove(), 700);
+  }
+
+  function tap(e) {
+    if (mode !== "free" && !running && count > 0) return;
+    if (!running) start();
+
+    const now = performance.now();
+    if (lastTap && now - lastTap < 650) combo++;
+    else combo = 1;
+    lastTap = now;
+
+    count++;
+    recentTaps.push(now);
+    if (count > best) bestEl.textContent = count;
+
+    const rect = counter.getBoundingClientRect();
+    spawnFloat(e.clientX - rect.left, e.clientY - rect.top);
+    counter.classList.remove("flash");
+    void counter.offsetWidth;
+    counter.classList.add("flash");
+    beep();
+    update();
+  }
+
+  function reset() {
+    running = false;
+    cancelAnimationFrame(timer);
+    count = 0; combo = 0; startedAt = 0; lastTap = 0;
+    recentTaps = []; deadline = 0;
+    statusEl.textContent = "READY";
+    tapLabel.textContent = mode === "free" ? "TAP DI MANA SAJA" : "TAP DI MANA SAJA";
+    update();
+  }
+
+  counter.addEventListener("pointerdown", e => {
+    e.preventDefault();
+    tap(e);
+  });
+
+  $("reset").addEventListener("click", reset);
+  $("challengeReset").addEventListener("click", reset);
+
+  $("sound").addEventListener("click", () => {
+    soundOn = !soundOn;
+    $("sound").textContent = "Sound: " + (soundOn ? "ON" : "OFF");
+    if (soundOn) beep();
+  });
+
+  modeButtons.forEach(btn => btn.addEventListener("click", () => {
+    mode = btn.dataset.mode;
+    modeButtons.forEach(b => b.classList.toggle("active", b === btn));
+    reset();
+    if (mode !== "free") tapLabel.textContent = mode + " DETIK — TAP DI MANA SAJA";
+  }));
+
+  update();
+})();
+</script>
+</body>
+</html>
